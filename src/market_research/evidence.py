@@ -11,7 +11,12 @@ def claim_fields(profile: Profile):
     for key in ("positioning",):
         if getattr(profile, key):
             fields[key] = getattr(profile, key)
-    for key in ("price", "device", "region"):
+    if profile.price.evidence:
+        for key in ("plan", "amount", "currency", "interval", "taxes", "mandatory_costs_known"):
+            value = getattr(profile.price, key)
+            if value is not None and value not in ("unknown", "Not verified") and value is not False:
+                fields[f"price.{key}"] = profile.price.evidence
+    for key in ("device", "region"):
         if getattr(profile, key).evidence:
             fields[key] = getattr(profile, key).evidence
     for key in ("features", "restrictions"):
@@ -26,16 +31,33 @@ def claim_fields(profile: Profile):
 
 def validate_passages(profile: Profile, sources: dict, brief: CreatorBrief, rejected=()):
     p = profile.model_copy(deep=True)
-    invalid = set(rejected)
+    # Accept nested paths returned by the reviewer as well as canonical claim paths.
+    invalid = set()
+    for path in rejected:
+        if path.startswith(("device.", "region.")):
+            path = path.split(".")[0]
+        elif path.startswith(("requirements.", "features.", "restrictions.", "news.")):
+            path = ".".join(path.split(".")[:2])
+        invalid.add(path)
     for field, claim in claim_fields(p).items():
         src = sources.get(claim.source_id)
         if not src or len(clean(claim.quote)) < 12 or clean(claim.quote) not in clean(src["text"]):
-            invalid.add(field)
+            invalid.add("price" if field.startswith("price.") else field)
     if "price" in invalid or not p.price.evidence:
         p.price.plan = "Not verified"
         p.price.amount, p.price.currency, p.price.interval = None, None, "unknown"
         p.price.evidence = None
         p.price.mandatory_costs_known = False
+        p.price.taxes = "unknown"
+    else:
+        resets = {"plan": "Not verified", "amount": None, "currency": None,
+                  "interval": "unknown", "taxes": "unknown", "mandatory_costs_known": False}
+        for key, replacement in resets.items():
+            if f"price.{key}" in invalid:
+                setattr(p.price, key, replacement)
+        if any(k.startswith("price.") for k in invalid):
+            p.price.evidence.text = "Supporting passage for retained pricing details; unresolved fields are shown separately."
+            p.gaps.append("Some pricing details remain unverified; supported plan and billing details were retained.")
     if "positioning" in invalid:
         p.positioning = None
     for field in ("device", "region"):
@@ -93,8 +115,26 @@ def budget_check(profile: Profile, brief: CreatorBrief):
         return "unknown", monthly, "Base price fits; taxes or mandatory costs need verification."
     return "meets", monthly, "Documented total fits the budget."
 
+def published_price_check(profile: Profile, brief: CreatorBrief):
+    p = profile.price
+    if p.amount is None or p.amount < 0 or not p.evidence or p.interval == "unknown":
+        return "unknown"
+    if p.interval == "free":
+        return "meets" if p.amount == 0 else "unknown"
+    if p.currency != brief.currency:
+        return "unknown"
+    if p.interval == "year":
+        if not brief.annual_ok:
+            return "does_not_meet"
+        amount = p.amount / 12
+    elif p.interval == "month":
+        amount = p.amount
+    else:
+        return "unknown"
+    return "meets" if amount <= brief.monthly_budget else "does_not_meet"
+
 def suitability(profile: Profile, brief: CreatorBrief):
     budget, monthly, note = budget_check(profile, brief)
     statuses = [budget, profile.device.status, profile.region.status] + [r.verdict.status for r in profile.requirements]
     status = "does_not_meet" if "does_not_meet" in statuses else ("unknown" if "unknown" in statuses else "meets")
-    return {"status": status, "budget_status": budget, "monthly_equivalent": monthly, "budget_note": note}
+    return {"status": status, "published_price_status": published_price_check(profile, brief), "budget_status": budget, "monthly_equivalent": monthly, "budget_note": note}

@@ -4,6 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import interrupt
 from market_research.schemas import CreatorBrief, Profile, unknown_profile
 from market_research.runtime import ServiceError, BudgetExceeded
+from market_research.retrieval import select_sources, pricing_pages
 
 class State(TypedDict, total=False):
     brief: dict
@@ -80,7 +81,7 @@ def build_graph(agents, saver):
         exhausted = False
         for q in queries[:3]:
             try:
-                found = agents.search.search(q["query"], q["kind"], brief.news_days)
+                found = agents.search.search(q["query"], q["kind"], brief.news_days, **({"domains": q["domains"]} if q.get("domains") else {}))
                 for source in found:
                     sources[source.id] = source.model_dump()
                     ids.append(source.id)
@@ -91,6 +92,17 @@ def build_graph(agents, saver):
                 if isinstance(exc, BudgetExceeded):
                     exhausted = True
                     break
+        # Fetch actual observed primary pricing URLs once during initial research.
+        if not exhausted and not state.get("queries") and hasattr(agents.search, "read_pages"):
+            urls = pricing_pages({sid:sources[sid] for sid in ids}, company["url"])
+            if urls:
+                try:
+                    for source in agents.search.read_pages(urls):
+                        sources[source.id] = source.model_dump()
+                        ids.append(source.id)
+                except ServiceError as exc:
+                    errors.append(f"{company['name']}: direct pricing-page extraction unavailable; using search evidence. {exc}")
+                    exhausted = isinstance(exc, BudgetExceeded)
         mapping[company["name"]] = list(dict.fromkeys(ids))
         if exhausted:
             return {"sources": sources, "company_sources": mapping, "errors": errors,
@@ -106,7 +118,7 @@ def build_graph(agents, saver):
         target = state["target"]
         ids = state.get("company_sources", {}).get(target["name"], [])
         # Bound model context; retain the full source registry in the saved report.
-        sources = {sid:state["sources"][sid] for sid in ids[-12:]}
+        sources = select_sources(ids, state["sources"], target["url"])
         profile = agents.analyze(brief, target, sources)
         profiles = {**state.get("profiles", {}), target["name"]: profile.model_dump()}
         return {"profiles": profiles, "queries": [], "next": "choose_target", "approved": False}

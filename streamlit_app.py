@@ -130,13 +130,14 @@ with overview:
         p = Profile.model_validate(raw)
         fit = suitability(p, brief)
         amount = f"{p.price.currency or ''} {p.price.amount:g}" if p.price.amount is not None else "Not verified"
-        rows.append({"Tool": p.name, "Plan": p.price.plan, "Price": amount,
+        rows.append({"Tool": p.name, "Plan": p.price.plan, "Published price": amount,
                      "Billing": p.price.interval, "Fit": fit["status"].replace("_", " "),
-                     "Budget": fit["budget_status"].replace("_", " "),
+                     "Listed price vs budget": fit["published_price_status"].replace("_", " "),
+                     "Total cost vs budget": fit["budget_status"].replace("_", " "),
                      "Device": p.device.status.replace("_", " "), "Region": p.region.status.replace("_", " ")})
     if rows:
         st.dataframe(rows, hide_index=True)
-        st.caption("Unknown means evidence needs verification. Annual prices are upfront amounts. Currency conversions are not assumed.")
+        st.caption("Published prices and billing can be supported while taxes or required extras remain unknown. Total cost includes these checks. Annual prices are upfront amounts; currencies are not converted.")
     if rec and rec.get("questions"):
         st.subheader("Before you choose")
         for question in rec["questions"]:
@@ -153,7 +154,13 @@ with profiles_tab:
             st.link_button("Official website", p.url)
             st.write("Positioning: " + (p.positioning.text if p.positioning else "Not verified"))
             st.write("Selected plan: " + p.price.plan)
+            st.write("Billing: " + p.price.interval)
             st.write(suitability(p, brief)["budget_note"])
+            if p.price.evidence:
+                source = state.get("sources", {}).get(p.price.evidence.source_id)
+                if source:
+                    st.link_button("Pricing source", source["url"])
+                    st.text(p.price.evidence.quote)
             st.dataframe([{"Must-have":r.name, "Status":r.verdict.status.replace("_", " "),
                            "Evidence":r.verdict.evidence.text if r.verdict.evidence else "Not verified"}
                           for r in p.requirements], hide_index=True)
@@ -179,7 +186,7 @@ with evidence_tab:
         st.code(render_report(state), language="markdown")
 
 with activity:
-    st.caption(f"Search requests: {counts.get('search',0)}/30 · Model requests: {counts.get('model',0)}/36")
+    st.caption(f"Search/page requests: {counts.get('search',0)}/30 · Model requests: {counts.get('model',0)}/36")
     st.dataframe([{"Step":kind, "Detail":detail, "Time":created} for kind,detail,created in usage.events()
                   if kind not in ("search", "model")], hide_index=True)
     st.caption("Run ID: " + run_id)

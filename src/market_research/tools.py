@@ -26,17 +26,36 @@ class YouSearch:
     def __init__(self, key, usage, transport=None, sleep=time.sleep):
         self.key, self.usage, self.transport, self.sleep = key, usage, transport, sleep
 
-    def search(self, query: str, kind="web", days=90) -> list[Source]:
+    def search(self, query: str, kind="web", days=90, domains=None) -> list[Source]:
         payload = {"query": query[:700], "count": 4}
+        if domains:
+            payload["include_domains"] = domains
         if kind == "news":
             payload["freshness"] = f"{date.today()-timedelta(days=days):%Y-%m-%d}to{date.today():%Y-%m-%d}"
         # Page extraction improves grounding while keeping the response bounded.
         payload["extraction"] = {"extraction_mode": "full_page"}
+        return normalize(self._request(SEARCH_URL, payload), kind)
+
+    def read_pages(self, urls):
+        urls = [public_url(url) for url in urls[:2]]
+        if not urls:
+            return []
+        data = self._request("https://ydc-index.io/v1/contents",
+                             {"urls": urls, "formats": ["markdown", "metadata"], "max_age": 900})
+        if not isinstance(data, list):
+            raise ServiceError("You.com returned an unreadable page response.")
+        rows = []
+        for row in data:
+            if isinstance(row, dict) and row.get("markdown"):
+                rows.append({**row, "page_age": None})
+        return normalize({"results": {"web": rows}}, "web")
+
+    def _request(self, endpoint, payload):
         with httpx.Client(timeout=35, transport=self.transport, follow_redirects=False) as client:
             for attempt in range(3):
                 self.usage.reserve("search")
                 try:
-                    response = client.post(SEARCH_URL, headers={"X-API-Key": self.key},
+                    response = client.post(endpoint, headers={"X-API-Key": self.key},
                                            json=payload)
                 except httpx.TransportError:
                     if attempt == 2:
@@ -59,11 +78,13 @@ class YouSearch:
                     data = response.json()
                 except ValueError:
                     raise ServiceError("You.com returned an unreadable response.") from None
-                return normalize(data, kind)
+                return data
         return []
 
 def normalize(data: dict, kind: str) -> list[Source]:
     result = []
+    if not isinstance(data, dict):
+        raise ServiceError("You.com returned an invalid results payload.")
     sections = data.get("results", {})
     if not isinstance(sections, dict):
         raise ServiceError("You.com response is missing its results object.")
