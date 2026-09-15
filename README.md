@@ -1,18 +1,12 @@
-# CreatorKit AI
+# MarketMate AI
 
-A local research assistant that helps creators choose short-video tools for their goals, device, and budget.
-Built for Week 3 Project 3A with Python, LangChain, LangGraph, You.com Search, and OpenAI.
+A local market-research assistant for small-business founders. Research a reference brand and three competitors, then explore sourced product and positioning facts, differentiation experiments, five content concepts and a proposed first-week plan.
 
-## What it does
+Built for Week 3 Project 3A with Python, LangChain, LangGraph, You.com and OpenAI.
 
-- Researches a starting tool and discovers three competitors dynamically.
-- Gathers public pricing, capabilities, positioning, restrictions, and dated news.
-- Checks exact evidence passages and runs a separate model verification pass.
-- Applies budget, device, region, and must-have constraints conservatively.
-- Saves progress in SQLite and pauses for clarification, recovery, and final review.
-- Exports approved Markdown and JSON briefings.
+Facts and proposals are separate: suggestions are hypotheses to test, not proven demand. Missing optional prices or news do not block other findings. Human review is required before export.
 
-The default editable example is a home baker considering Canva for Instagram reels on Android in India, with an INR 1,000 monthly budget.
+See [product scope](docs/MARKETMATE_SCOPE.md) and [submission draft](docs/SUBMISSION_DRAFT.md). CreatorKit is the earlier prototype; its saved data remains intact. New runs are stored in data/marketmate.
 
 ## Setup (PowerShell)
 
@@ -66,13 +60,13 @@ The offline setup check verifies configuration, imports, and a LangGraph/SQLite 
 
 ## Scope and limits
 
-- Short-video tool comparison for one creator, one country/device, and up to six must-haves.
-- Three competitors plus the starting tool. Missing/ambiguous discovery pauses for clarification.
+- Competitor research for a business idea, audience and target market.
+- Three competitors plus the reference brand. Missing/ambiguous discovery pauses for clarification.
 - At most 30 search requests and 36 model requests per run, including retries. At most two autonomous follow-up searches and two user revision rounds.
 - A 10-minute active-execution budget per invocation, excluding human waiting. Persistent request counters apply across retries and restarts.
 - API requests cost money. Request limits bound usage but are not an exact currency spending cap.
 - A source record keeps up to 16,000 characters; an analysis pass uses up to 12 recent source records for that product.
-- Tax uncertainty, currency mismatch, and missing region/device evidence produce unknown suitability rather than an invented match.
+- Optional missing prices do not block synthesis. Experiments and content concepts are proposals, not verified demand.
 - News requires a source metadata date inside the chosen window. Missing metadata can exclude otherwise relevant announcements.
 - Evidence matching and a second model pass reduce errors; they do not guarantee factual accuracy.
 - No purchasing, signup, publishing, or cancellation. No automatic final approval.
@@ -80,8 +74,8 @@ The offline setup check verifies configuration, imports, and a LangGraph/SQLite 
 
 ## Local data
 
-data/creatorkit.sqlite stores checkpoints, source passages, run history, and sanitized event logs.
-data/exports/<run-id>/ holds approved exports. These files are ignored by Git.
+data/marketmate/creatorkit.sqlite stores checkpoints, source passages, run history, and sanitized event logs.
+data/marketmate/exports/<run-id>/ holds approved exports. These files are ignored by Git.
 Run data remains locally until explicitly removed. Do not delete the database while the app is running.
 Fresh runs fetch new evidence; old reports retain their original retrieval dates.
 
@@ -93,15 +87,15 @@ ipykernel is installed; a global kernel registration is unnecessary.
 ## Repository guide
 
 - streamlit_app.py: input, comparison, evidence, history, review, and download UI.
-- src/market_research/schemas.py: creator brief and research contracts.
+- src/market_research/market_schemas.py: business brief, checked facts, and proposed actions.
 - tools.py: bounded You.com search with extraction.
-- models.py and agents.py: structured model calls and specialist roles.
-- evidence.py: citation matching and deterministic suitability rules.
+- models.py and market_agents.py: structured model calls, specialist roles and evidence checks.
+- market_reporting.py: sourced competitor report and labeled experiments.
 - graph.py: research routing, bounded follow-up, interrupts, and recovery.
 - service.py and runtime.py: SQLite lifecycle, history, and usage limits.
 - reporting.py: Markdown rendering and approval-gated exports.
 - tests/: offline evidence, failure, persistence, budget, and UI tests.
-- docs/CREATORKIT_SCOPE.md: agreed product scope.
+- docs/MARKETMATE_SCOPE.md: current product scope.
 - docs/ARCHITECTURE.md: technical design.
 - docs/SUBMISSION_DRAFT.md: documentation outline and demo script.
 - docs/BUILD_LOG.md: implementation decisions and validation notes.

@@ -29,6 +29,9 @@ class State(TypedDict, total=False):
     event: str
 
 def build_graph(agents, saver):
+    brief_type = getattr(agents, "brief_type", CreatorBrief)
+    profile_type = getattr(agents, "profile_type", Profile)
+    empty = getattr(agents, "empty_profile", unknown_profile)
     def wrap(name, fn):
         def run(state):
             agents.usage.record("stage", name)
@@ -45,7 +48,7 @@ def build_graph(agents, saver):
         return run
 
     def discovery(state):
-        brief = CreatorBrief.model_validate(state["brief"])
+        brief = brief_type.model_validate(state["brief"])
         competitors, sources, clarification = agents.discover(brief, state.get("feedback", ""))
         combined = {**state.get("sources", {}), **sources}
         anchor = {"name": brief.anchor_name, "url": brief.anchor_url, "reason": "Your starting option", "source_ids": []}
@@ -71,7 +74,7 @@ def build_graph(agents, saver):
         return {"target": queue[0], "queue": queue[1:], "queries": [], "next": "research"}
 
     def research(state):
-        brief = CreatorBrief.model_validate(state["brief"])
+        brief = brief_type.model_validate(state["brief"])
         company = state["target"]
         queries = state.get("queries") or agents.plan_research(brief, company)
         sources = dict(state.get("sources", {}))
@@ -94,14 +97,14 @@ def build_graph(agents, saver):
                     break
         # Fetch actual observed primary pricing URLs once during initial research.
         if not exhausted and not state.get("queries") and hasattr(agents.search, "read_pages"):
-            urls = pricing_pages({sid:sources[sid] for sid in ids}, company["url"])
+            urls = ([company["url"]] if getattr(agents, "market_mode", False) else pricing_pages({sid:sources[sid] for sid in ids}, company["url"]))
             if urls:
                 try:
                     for source in agents.search.read_pages(urls):
                         sources[source.id] = source.model_dump()
                         ids.append(source.id)
                 except ServiceError as exc:
-                    errors.append(f"{company['name']}: direct pricing-page extraction unavailable; using search evidence. {exc}")
+                    errors.append(f"{company['name']}: direct page extraction unavailable; using search evidence. {exc}")
                     exhausted = isinstance(exc, BudgetExceeded)
         mapping[company["name"]] = list(dict.fromkeys(ids))
         if exhausted:
@@ -114,7 +117,7 @@ def build_graph(agents, saver):
                 "next": "analyze", "status": "researching"}
 
     def analyze(state):
-        brief = CreatorBrief.model_validate(state["brief"])
+        brief = brief_type.model_validate(state["brief"])
         target = state["target"]
         ids = state.get("company_sources", {}).get(target["name"], [])
         # Bound model context; retain the full source registry in the saved report.
@@ -126,7 +129,7 @@ def build_graph(agents, saver):
     def orchestrate(state):
         if state.get("followups", 0) >= 2 or state.get("status") == "partial":
             return {"next": "compile"}
-        brief = CreatorBrief.model_validate(state["brief"])
+        brief = brief_type.model_validate(state["brief"])
         decision = agents.followup(brief, state.get("profiles", {}))
         candidates = [{"name":brief.anchor_name, "url":brief.anchor_url}, *state.get("competitors", [])]
         target = next((c for c in candidates if c["name"] == decision.target_name), None)
@@ -137,14 +140,14 @@ def build_graph(agents, saver):
         return {"next": "compile"}
 
     def compile_report(state):
-        brief = CreatorBrief.model_validate(state["brief"])
+        brief = brief_type.model_validate(state["brief"])
         profiles = dict(state.get("profiles", {}))
         companies = [{"name":brief.anchor_name, "url":brief.anchor_url}, *state.get("competitors", [])]
         for c in companies:
             if c["name"] not in profiles:
-                profiles[c["name"]] = unknown_profile(c["name"], c["url"], brief, "Research incomplete.").model_dump()
+                profiles[c["name"]] = empty(c["name"], c["url"], brief, "Research incomplete.").model_dump()
         try:
-            recommendation = agents.recommend(brief, [Profile.model_validate(p) for p in profiles.values()]).model_dump()
+            recommendation = agents.recommend(brief, [profile_type.model_validate(p) for p in profiles.values()]).model_dump()
         except ServiceError as exc:
             recommendation = {"recommended_name": None,
                               "explanation": "No final recommendation is available. Review the collected evidence and unresolved fields.",

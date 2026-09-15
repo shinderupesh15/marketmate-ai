@@ -14,6 +14,9 @@ def claim_text(c):
     return f"{text(c.text)} [{c.source_id}]" if c else "Not verified"
 
 def render_report(state):
+    if "audience" in state.get("brief", {}):
+        from market_research.market_reporting import render_market_report
+        return render_market_report(state)
     brief = CreatorBrief.model_validate(state["brief"])
     lines = ["# CreatorKit AI", "", "**" + ("Approved" if state.get("approved") else "Draft — awaiting review") + "**",
              "", f"Created: {state.get('created_at', '')}", "",

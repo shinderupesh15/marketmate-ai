@@ -1,10 +1,12 @@
-# CreatorKit AI architecture
+# MarketMate AI architecture
+
+The shared graph now accepts MarketAgents with BusinessBrief, BusinessProfile and MarketPlan contracts. New runs live under data/marketmate; earlier CreatorKit data is preserved. The main app uses MarketService.
 
 ## Workflow
 
 ```mermaid
 flowchart TD
-    A[Creator brief] --> B[Discovery agent: search and identify vendors]
+    A[Business brief] --> B[Discovery agent: search and identify brands]
     B --> C{Three supported competitors?}
     C -->|No| D[Human clarification or partial scope]
     D --> B
@@ -14,7 +16,7 @@ flowchart TD
     G --> H[Exact quotation checks and model verification]
     H --> I[Next product or orchestrator assessment]
     I -->|Material gap, within limits| E
-    I -->|Ready or exhausted| J[Suitability checks and draft recommendation]
+    I -->|Ready or exhausted| J[Checked facts and proposed experiments]
     J --> K[Human review]
     K -->|Targeted revision| E
     K -->|Approve| L[Markdown and JSON export]
@@ -40,20 +42,19 @@ A revision returns to research and leaves the report unapproved.
 ## Evidence rules
 
 Every claim has a source ID and an exact supporting passage. Matching is case/whitespace normalized.
-Invalid or missing references invalidate the field. A separate structured model call checks whether the field's meaning and plan applicability follow from the source.
+Invalid or missing references invalidate the field. A separate structured model call checks whether the field's meaning and attribution follow from the source.
 Model verification is fallible and is described as a check, not a guarantee.
 
 Published news dates must match source metadata and be within the configured window.
 The registry retains retrieval dates and whether evidence came from an excerpt or extracted page content.
-Prices retain billing cadence, source currency, tax status, and whether required additional costs are known.
+Published price examples retain their source wording and context. They are optional.
 
-Suitability applies hard rules in Python. It never treats unknown as a pass.
-A paid base price under budget is still unknown if taxes or required extras cannot be established.
-Annual amounts are divided by 12 only for comparison; users must explicitly allow upfront annual payment.
-No foreign-exchange rate is invented.
+MarketMate does not score brands against purchase constraints. It generates pre-launch experiments and content concepts from a catalog of checked facts. The synthesis schema restricts fact references to catalog IDs; those IDs resolve to company fields and source passages in the report. Ideas remain hypotheses even when their research basis is supported.
+
+Analysis sends at most four source excerpts of 8,000 characters each to the model. The complete collected source registry remains in the saved run. Transient OpenAI rate-limit errors get one bounded retry; persistent access/quota errors pause research.
 
 ## Deliberate first-version limits
 
 Local single-user use, sequential competitor processing, no automatic purchase or external publication, no scheduled monitoring.
-The interface does not generate videos or promise commercial rights to every included stock asset.
+The interface does not prove demand, generate finished products, or conduct customer research on the user's behalf.
 Historical snapshots and cross-run constraint-only recomputation are future enhancements.

@@ -36,3 +36,13 @@ Live-run results and remaining unknowns must be recorded separately before claim
 
 11. Fixed unverified analysis notes leaking into the final summary. Recommendation prose is now assembled from checked fields; a regression test covers this.
 12. Final structured model adapter and token logging passed a small live smoke test. See LIVE_RUN_REVIEW.md for the full demo outcome.
+
+
+## MarketMate pivot
+- Replaced the purchase suitability experience with business briefs, competitor observations, differentiation experiments, content ideas and proposed first-week actions.
+- Reused LangGraph recovery/review and SQLite persistence with separate MarketMate storage.
+- Split candidate discovery from official-site resolution after live discovery returned a directory link.
+- Bounded analysis excerpts after parallel live tests encountered OpenAI 429 errors; added a bounded transient-rate-limit retry.
+- Restricted synthesis citations through a dynamic JSON schema of actual fact IDs after free-form field references caused valid-looking ideas to be dropped.
+- Kept source-based observations separate from pre-launch proposals and labeled suggested success thresholds as targets to adjust.
+- Existing API keys and dependency lock reused. No external posting, purchasing or remote Git push.
