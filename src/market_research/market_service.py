@@ -23,3 +23,9 @@ class MarketService(ResearchService):
             agents = MarketAgents(Models(settings, usage), YouSearch(settings.ydc_api_key.get_secret_value(), usage), usage)
         with SqliteSaver.from_conn_string(str(self.db)) as saver:
             yield build_graph(agents, saver), usage
+
+    def export(self, run_id):
+        from market_research.reporting import export_report
+        from market_research.market_reporting import render_market_report
+        state, _, _ = self.snapshot(run_id)
+        return export_report(state, self.data_dir / "exports" / run_id, renderer=render_market_report)

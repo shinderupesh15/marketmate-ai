@@ -60,12 +60,12 @@ def render_report(state):
         lines.append(f"- [{s['id']}] [{text(s['title'])}]({safe_url}) — retrieved {s['retrieved_at']}; {s['content_level']}.")
     return "\n".join(lines)
 
-def export_report(state, destination: Path):
+def export_report(state, destination: Path, renderer=None):
     if not state.get("approved") or state.get("status") != "approved":
         raise PermissionError("Approve the current draft before export.")
     destination.mkdir(parents=True, exist_ok=True)
     for filename, content in (
-        ("briefing.md", render_report(state)),
+        ("briefing.md", (renderer or render_report)(state)),
         ("briefing.json", json.dumps(state, indent=2, ensure_ascii=False)),
     ):
         temp = destination / (filename + ".tmp")

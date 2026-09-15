@@ -119,3 +119,15 @@ def test_analysis_context_is_bounded():
                "text":sample().products[0].quote + "x"*20000,"kind":"web"} for i in range(12)}
     p=MarketAgents(ModelStub(),None,None).analyze(BusinessBrief(),{"name":"Reference","url":"https://example.com"},sources)
     assert p.products
+
+def test_market_export_bypasses_legacy_renderer(tmp_path, monkeypatch):
+    def legacy_renderer(_):
+        raise AssertionError("MarketMate must not route through the CreatorKit renderer")
+    monkeypatch.setattr("market_research.reporting.render_report", legacy_renderer)
+    service = MarketService(tmp_path, factory)
+    run = service.new_run(BusinessBrief())
+    service.execute(run)
+    with pytest.raises(PermissionError):
+        service.export(run)
+    service.execute(run, {"action":"approve"})
+    assert "# MarketMate AI" in (service.export(run)/"briefing.md").read_text(encoding="utf-8")

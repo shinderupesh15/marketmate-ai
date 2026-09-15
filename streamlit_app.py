@@ -4,8 +4,7 @@ from pydantic import ValidationError
 from market_research.config import load_settings
 from market_research.market_schemas import BusinessBrief, BusinessProfile
 from market_research.market_service import MarketService
-from market_research.market_reporting import basis_claims
-from market_research.reporting import render_report
+from market_research.market_reporting import basis_claims, render_market_report
 from market_research.runtime import ServiceError
 
 st.set_page_config(page_title="MarketMate AI", page_icon=":material/storefront:", layout="wide")
@@ -19,7 +18,7 @@ st.session_state.setdefault("market_run", None)
 
 def execute(run_id, answer=None):
     try:
-        with st.status("Researching your marketÃ¢â‚¬Â¦", expanded=True) as status:
+        with st.status("Researching your marketÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦", expanded=True) as status:
             def progress(stage, update):
                 labels = {"discovery":"Discovering competitors", "research":"Reading public sources",
                           "analyze":"Checking competitor facts", "compile":"Preparing experiments and content ideas",
@@ -27,7 +26,7 @@ def execute(run_id, answer=None):
                 if stage in labels:
                     st.write(labels[stage])
             result = service.execute(run_id, answer, progress)
-            status.update(label="Research saved Ã‚Â· "+result.get("status","paused").replace("_"," "),
+            status.update(label="Research saved Ãƒâ€šÃ‚Â· "+result.get("status","paused").replace("_"," "),
                           state="complete", expanded=False)
     except (ServiceError, ValidationError):
         st.error("Research paused. Check configuration or resume the saved run.")
@@ -92,9 +91,9 @@ if not run_id:
             except ValidationError:
                 st.error("Enter your business idea, audience, market, and a valid public brand website.")
     with st.container(horizontal=True):
-        st.info("01 Ã‚Â· Sourced competitor facts")
-        st.info("02 Ã‚Â· Differentiation experiments")
-        st.info("03 Ã‚Â· Content ideas and a first-week plan")
+        st.info("01 Ãƒâ€šÃ‚Â· Sourced competitor facts")
+        st.info("02 Ãƒâ€šÃ‚Â· Differentiation experiments")
+        st.info("03 Ãƒâ€šÃ‚Â· Content ideas and a first-week plan")
     st.stop()
 
 state, pending, usage = service.snapshot(run_id)
@@ -103,7 +102,7 @@ if not state:
     st.stop()
 brief = BusinessBrief.model_validate(state["brief"])
 st.subheader(brief.goal)
-st.caption(f"{brief.audience} Ã‚Â· {brief.country} Ã‚Â· Research from {state['created_at'][:10]}")
+st.caption(f"{brief.audience} Ãƒâ€šÃ‚Â· {brief.country} Ãƒâ€šÃ‚Â· Research from {state['created_at'][:10]}")
 
 def show_claim(claim, prefix=""):
     st.write(prefix + claim.text)
@@ -152,7 +151,7 @@ with overview:
             if p.news:
                 st.markdown("**Dated news**")
                 for item in p.news:
-                    show_claim(item.evidence, item.published_date+" Ã‚Â· ")
+                    show_claim(item.evidence, item.published_date+" Ãƒâ€šÃ‚Â· ")
             if not p.pricing:
                 st.caption("No supported price example collected. Other findings remain usable.")
             if not p.news:
@@ -193,26 +192,26 @@ with actions:
     st.subheader("Your proposed first week")
     for item in sorted(plan.get("actions", []), key=lambda x:x["day"]):
         with st.container(border=True):
-            st.markdown(f"**Day {item['day']} Ã‚Â· {item['task']}**")
+            st.markdown(f"**Day {item['day']} Ãƒâ€šÃ‚Â· {item['task']}**")
             st.write("Deliverable: "+item["deliverable"])
     if plan.get("questions"):
         st.markdown("### Assumptions to validate")
         for question in plan["questions"]:
-            st.write("Ã¢â‚¬Â¢ "+question)
+            st.write("ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ "+question)
 
 with evidence:
     st.caption("Public source snapshots. Brand messaging is attributed, not independently proven.")
     for source in state.get("sources", {}).values():
-        with st.expander(source["title"]+" Ã‚Â· "+source["id"]):
+        with st.expander(source["title"]+" Ãƒâ€šÃ‚Â· "+source["id"]):
             st.link_button("Read source", source["url"], key="source_"+source["id"])
-            st.caption(f"Retrieved {source['retrieved_at']} Ã‚Â· Published {source.get('published_at') or 'not supplied'}")
+            st.caption(f"Retrieved {source['retrieved_at']} Ãƒâ€šÃ‚Â· Published {source.get('published_at') or 'not supplied'}")
             st.text(source["text"][:5000])
     counts = usage.counts()
-    st.caption(f"Search/page requests: {counts.get('search',0)}/30 Ã‚Â· Model requests: {counts.get('model',0)}/36")
+    st.caption(f"Search/page requests: {counts.get('search',0)}/30 Ãƒâ€šÃ‚Â· Model requests: {counts.get('model',0)}/36")
     st.dataframe([{"Step":k,"Detail":d,"Time":t} for k,d,t in usage.events() if k not in ("search","model")], hide_index=True)
     st.caption("Run ID: "+run_id)
     with st.expander("Full draft briefing"):
-        st.code(render_report(state), language="markdown")
+        st.code(render_market_report(state), language="markdown")
 
 if pending:
     request = pending[0]
