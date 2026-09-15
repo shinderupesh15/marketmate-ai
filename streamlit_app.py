@@ -11,6 +11,16 @@ from market_research.runtime import ServiceError
 
 st.set_page_config(page_title="MarketMate AI", page_icon=":material/storefront:", layout="wide")
 
+# Keep the title close to the toolbar without covering its navigation controls.
+# Streamlit has no theme setting for the main container's top padding.
+st.html("""
+    <style>
+        [data-testid="stMainBlockContainer"] {
+            padding-top: 3.5rem;
+        }
+    </style>
+""")
+
 
 @st.cache_resource
 def get_service():
