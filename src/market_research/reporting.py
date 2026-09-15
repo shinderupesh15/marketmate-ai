@@ -1,11 +1,14 @@
 """Formatting helpers and approval-gated MarketMate exports."""
+
 import json
 import re
 from pathlib import Path
 
+
 def text(value):
     # Escape HTML and Markdown metacharacters from untrusted product data.
     import html
+
     return re.sub(r"([\\\x60*_{}\[\]<>|])", r"\\\1", html.escape(str(value))).replace("\n", " ")
 
 
@@ -15,6 +18,7 @@ def claim_text(c):
 
 def export_report(state, destination: Path):
     from market_research.market_reporting import render_market_report
+
     if not state.get("approved") or state.get("status") != "approved":
         raise PermissionError("Approve the current draft before export.")
     destination.mkdir(parents=True, exist_ok=True)

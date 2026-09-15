@@ -52,6 +52,8 @@ Review this run in the web app. The CLI does not automatically approve reports.
 ```powershell
 uv run --locked python -m market_research.check_setup
 uv run --locked pytest -q
+uv run --locked ruff check src tests streamlit_app.py
+uv run --locked ruff format --check src tests streamlit_app.py
 uv pip check
 ```
 
@@ -65,7 +67,7 @@ The offline setup check verifies configuration, imports, and a LangGraph/SQLite 
 - At most 30 search requests and 36 model requests per run, including retries. At most two autonomous follow-up searches and two user revision rounds.
 - A 10-minute active-execution budget per invocation, excluding human waiting. Persistent request counters apply across retries and restarts.
 - API requests cost money. Request limits bound usage but are not an exact currency spending cap.
-- A source record keeps up to 16,000 characters; an analysis pass uses up to 12 recent source records for that product.
+- A source record keeps up to 16,000 characters; the graph selects up to 12 records and an analysis call receives at most four 8,000-character excerpts.
 - Optional missing prices do not block synthesis. Experiments and content concepts are proposals, not verified demand.
 - News requires a source metadata date inside the chosen window. Missing metadata can exclude otherwise relevant announcements.
 - Evidence matching and a second model pass reduce errors; they do not guarantee factual accuracy.
@@ -99,3 +101,9 @@ ipykernel is installed; a global kernel registration is unnecessary.
 - docs/ARCHITECTURE.md: technical design.
 - docs/SUBMISSION_DRAFT.md: documentation outline and demo script.
 - docs/BUILD_LOG.md: implementation decisions and validation notes.
+
+## Demo and submission
+
+See [readiness review](docs/DEMO_READINESS.md), [sample draft](examples/sample-briefing.md), and [submission document](docs/SUBMISSION_DRAFT.md). The sample has three competitors plus a reference brand. Missing prices/news are explicitly disclosed.
+
+GitHub: https://github.com/shinderupesh15/marketmate-ai

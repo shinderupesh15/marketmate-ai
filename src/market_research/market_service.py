@@ -1,19 +1,22 @@
 """Local run history and graph lifecycle. No credentials enter graph state."""
-from pathlib import Path
+
 from contextlib import contextmanager
+from pathlib import Path
 from uuid import uuid4
-import sqlite3
+
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.types import Command
-from market_research.config import load_settings, PROJECT_ROOT
-from market_research.schemas import utcnow
-from market_research.market_schemas import BusinessBrief
-from market_research.runtime import Usage
-from market_research.models import Models
-from market_research.tools import YouSearch
-from market_research.market_agents import MarketAgents
+
+from market_research.config import PROJECT_ROOT, load_settings
 from market_research.graph import build_graph
+from market_research.market_agents import MarketAgents
+from market_research.market_schemas import BusinessBrief
+from market_research.models import Models
 from market_research.reporting import export_report
+from market_research.runtime import Usage
+from market_research.schemas import utcnow
+from market_research.tools import YouSearch
+
 
 class MarketService:
     def __init__(self, data_dir=None, factory=None):
@@ -29,7 +32,11 @@ class MarketService:
             agents = self.factory(usage)
         else:
             settings = load_settings()
-            agents = MarketAgents(Models(settings, usage), YouSearch(settings.ydc_api_key.get_secret_value(), usage), usage)
+            agents = MarketAgents(
+                Models(settings, usage),
+                YouSearch(settings.ydc_api_key.get_secret_value(), usage),
+                usage,
+            )
         with SqliteSaver.from_conn_string(str(self.db)) as saver:
             yield build_graph(agents, saver), usage
 
@@ -37,15 +44,29 @@ class MarketService:
         run_id = uuid4().hex
         usage = Usage(self.db, run_id)
         with usage.connect() as c:
-            c.execute("INSERT INTO runs VALUES (?,?,?)", (run_id, brief.anchor_name + " · " + brief.goal[:70], utcnow()))
+            c.execute(
+                "INSERT INTO runs VALUES (?,?,?)",
+                (run_id, brief.anchor_name + " · " + brief.goal[:70], utcnow()),
+            )
         # Store the initial checkpoint before the first remote request.
         with self.session(run_id) as (graph, _):
-            graph.update_state(self.config(run_id), {
-                "brief": brief.model_dump(), "created_at": utcnow(),
-                "sources": {}, "profiles": {}, "company_sources": {}, "errors": [],
-                "followups": 0, "revision_count": 0, "approved": False, "status": "ready",
-                "next": "discovery",
-            }, as_node="recovery")
+            graph.update_state(
+                self.config(run_id),
+                {
+                    "brief": brief.model_dump(),
+                    "created_at": utcnow(),
+                    "sources": {},
+                    "profiles": {},
+                    "company_sources": {},
+                    "errors": [],
+                    "followups": 0,
+                    "revision_count": 0,
+                    "approved": False,
+                    "status": "ready",
+                    "next": "discovery",
+                },
+                as_node="recovery",
+            )
         return run_id
 
     @staticmethod

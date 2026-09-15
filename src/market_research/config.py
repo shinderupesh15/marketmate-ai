@@ -1,14 +1,19 @@
 """Validated configuration; never log raw credential values."""
+
 from pathlib import Path
+
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=PROJECT_ROOT / ".env", env_file_encoding="utf-8-sig",
-        extra="ignore", hide_input_in_errors=True,
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8-sig",
+        extra="ignore",
+        hide_input_in_errors=True,
     )
     ydc_api_key: SecretStr
     openai_api_key: SecretStr
@@ -28,6 +33,7 @@ class Settings(BaseSettings):
         if not value.strip():
             raise ValueError("Model name cannot be blank")
         return value.strip()
+
 
 def load_settings() -> Settings:
     """Read current settings, including edits saved since the previous call."""

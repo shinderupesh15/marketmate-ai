@@ -1,9 +1,13 @@
 """Offline setup check: python -m market_research.check_setup."""
+
 from importlib import import_module
 from importlib.metadata import version
 from typing import TypedDict
+
 from pydantic import ValidationError
+
 from market_research.config import load_settings
+
 
 def main() -> int:
     try:
@@ -15,9 +19,12 @@ def main() -> int:
     print("You.com and OpenAI credentials: configured (values hidden)")
     print("Model: " + settings.openai_model)
     for module, distribution in (
-        ("langchain", "langchain"), ("langgraph.graph", "langgraph"),
-        ("langchain_openai", "langchain-openai"), ("streamlit", "streamlit"),
-        ("httpx", "httpx"), ("ipykernel", "ipykernel"),
+        ("langchain", "langchain"),
+        ("langgraph.graph", "langgraph"),
+        ("langchain_openai", "langchain-openai"),
+        ("streamlit", "streamlit"),
+        ("httpx", "httpx"),
+        ("ipykernel", "ipykernel"),
     ):
         import_module(module)
         print(f"{distribution}: {version(distribution)}")
@@ -41,6 +48,7 @@ def main() -> int:
     print("LangGraph execution and SQLite checkpoint round-trip: OK")
     print("Setup OK. No API requests were made.")
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

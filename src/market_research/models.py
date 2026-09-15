@@ -1,7 +1,10 @@
 """Structured LangChain model calls with bounded retries and sanitized errors."""
+
 import time
+
 from langchain_openai import ChatOpenAI
-from openai import LengthFinishReasonError, APITimeoutError, APIConnectionError
+from openai import APIConnectionError, APITimeoutError, LengthFinishReasonError
+
 from market_research.runtime import ServiceError
 
 SYSTEM = """You are a careful market research specialist.
@@ -11,24 +14,58 @@ Use only supplied evidence for facts; admit unknowns. Return the requested schem
 Keep claims concise. Cite exact supporting passages, not invented or paraphrased quotations.
 Do not infer regional availability from global popularity or a feature from a brand name."""
 
+
 class Models:
     def __init__(self, settings, usage):
         self.usage = usage
-        self.llm = ChatOpenAI(model=settings.openai_model,
-                             api_key=settings.openai_api_key.get_secret_value(),
-                             temperature=0, timeout=45, max_retries=0, max_tokens=3000,
-                             base_url="https://api.openai.com/v1")
+        self.llm = ChatOpenAI(
+            model=settings.openai_model,
+            api_key=settings.openai_api_key.get_secret_value(),
+            temperature=0,
+            timeout=45,
+            max_retries=0,
+            max_tokens=3000,
+            base_url="https://api.openai.com/v1",
+        )
+
     def ask(self, schema, task, payload):
         import json
+
         output_limit = 3000
         for attempt in range(2):
             self.usage.reserve("model")
             try:
-                runner = self.llm.model_copy(update={"max_tokens": output_limit}).with_structured_output(schema, method="json_schema", strict=True, include_raw=True)
-                response = runner.invoke([("system", SYSTEM + "\n" + task + ("\nKeep the response minimal and complete. Never emit control characters or repeated escape sequences. Use empty lists/null for unsupported fields." if attempt else "")),
-                                        ("human", json.dumps(payload, ensure_ascii=True))])
+                runner = self.llm.model_copy(
+                    update={"max_tokens": output_limit}
+                ).with_structured_output(
+                    schema, method="json_schema", strict=True, include_raw=True
+                )
+                response = runner.invoke(
+                    [
+                        (
+                            "system",
+                            SYSTEM
+                            + "\n"
+                            + task
+                            + (
+                                "\nKeep the response minimal and complete. Never emit control characters or repeated escape sequences. Use empty lists/null for unsupported fields."
+                                if attempt
+                                else ""
+                            ),
+                        ),
+                        ("human", json.dumps(payload, ensure_ascii=True)),
+                    ]
+                )
                 raw_usage = response["raw"].usage_metadata or {}
-                self.usage.record("tokens", json.dumps({k:raw_usage.get(k, 0) for k in ("input_tokens", "output_tokens", "total_tokens")}))
+                self.usage.record(
+                    "tokens",
+                    json.dumps(
+                        {
+                            k: raw_usage.get(k, 0)
+                            for k in ("input_tokens", "output_tokens", "total_tokens")
+                        }
+                    ),
+                )
                 result = response.get("parsed")
                 if result is None:
                     if response["raw"].response_metadata.get("finish_reason") == "length":
@@ -36,7 +73,9 @@ class Models:
                         if attempt == 0:
                             output_limit = 6000
                             continue
-                        raise ServiceError("OpenAI's response was cut off twice. Retry the saved step.")
+                        raise ServiceError(
+                            "OpenAI's response was cut off twice. Retry the saved step."
+                        )
                     raise ValueError("Empty structured response")
                 return result
             except ServiceError:
@@ -47,8 +86,18 @@ class Models:
                     if attempt == 0:
                         output_limit = 6000
                         continue
-                    raise ServiceError("OpenAI's response was cut off twice. Retry the saved step.") from None
-                reason = "connection timeout" if isinstance(exc, APITimeoutError) else ("connection failure" if isinstance(exc, APIConnectionError) else "invalid structured response")
+                    raise ServiceError(
+                        "OpenAI's response was cut off twice. Retry the saved step."
+                    ) from None
+                reason = (
+                    "connection timeout"
+                    if isinstance(exc, APITimeoutError)
+                    else (
+                        "connection failure"
+                        if isinstance(exc, APIConnectionError)
+                        else "invalid structured response"
+                    )
+                )
                 self.usage.record("model_error", reason)
                 code = getattr(exc, "status_code", None)
                 provider_code = getattr(exc, "code", None)
@@ -57,8 +106,12 @@ class Models:
                     time.sleep(20)
                     continue
                 if code in (401, 403, 429):
-                    raise ServiceError(f"OpenAI access or quota needs attention (HTTP {code}).") from None
+                    raise ServiceError(
+                        f"OpenAI access or quota needs attention (HTTP {code})."
+                    ) from None
                 if attempt == 1:
-                    raise ServiceError(f"OpenAI {reason} after two attempts. Retry the saved step.") from None
+                    raise ServiceError(
+                        f"OpenAI {reason} after two attempts. Retry the saved step."
+                    ) from None
                 self.usage.record("retry", "Model output/connection retry")
         raise ServiceError("Model response unavailable.")

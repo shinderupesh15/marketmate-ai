@@ -26,3 +26,25 @@ Facts have source IDs and supporting quotations. Brand messaging is attributed. 
 
 ## Submission actions
 Review measured live evaluations, record the demo, create/share the GitHub repository and submission document, and provide the required links. Local implementation is not a completed course submission.
+
+
+## One-liner and success measure
+MarketMate helps pre-launch founders research competing brands in a web app using You.com search/page retrieval and structured analysis, replacing manual browsing and comparison, then hands off a sourced briefing and proposed experiments for human review; the evaluation target is a usable briefing in under ten active minutes on eight of ten scoped cases.
+
+That time/success rate is a future target, not an achieved benchmark. Three development cases completed after interventions. See MARKETMATE_VALIDATION.md for measured output coverage and disclosed repairs. No measured claim of hours saved is made.
+
+## AI coding process and prompts
+Codex was used to implement the Python graph, schemas, tool adapters, interface, and tests, and to investigate errors reported during manual testing. User instructions included:
+- “Give another name and start implementing.”
+- “Also, when I refresh the page, I can see a few texts which are gibberish.”
+- “Review the code again, and we need to give the GitHub link also.”
+
+Iterations included official-site resolution, evidence-preserving price handling, separating facts from experiments, filtering weak search results, bounded output retries, and explicit UTF-8 handling. The agent prompts themselves are in market_agents.py and models.py. BUILD_LOG.md records the main implementation decisions.
+
+## Data and evaluation
+Inputs are the user's business brief and public You.com web/news/page results. There is no training dataset or model fine-tuning. Synthetic fixtures exercise errors and human-review state without API calls. Live outputs are separate from fixture tests. Brand claims are attributed, not independently certified.
+
+## Code link
+https://github.com/shinderupesh15/marketmate-ai
+
+Video link: add after recording. Google Doc link: create this document in Google Docs and enable reviewer access.

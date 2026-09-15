@@ -1,12 +1,16 @@
 """Contracts shared by the agents, UI, and checkpoint store."""
+
+import ipaddress
 from datetime import datetime, timezone
 from typing import Literal
 from urllib.parse import urlparse
-import ipaddress
+
 from pydantic import BaseModel, ConfigDict, field_validator
+
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 def public_url(value: str) -> str:
     p = urlparse(value.strip())
@@ -23,8 +27,10 @@ def public_url(value: str) -> str:
             raise
     return value.strip()
 
+
 class Model(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
 
 class Source(Model):
     id: str

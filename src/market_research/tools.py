@@ -1,15 +1,18 @@
 """You.com search tool. Credentials go only to the fixed provider endpoint."""
+
 import hashlib
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from datetime import datetime, timezone
 from urllib.parse import urldefrag
+
 import httpx
-from market_research.schemas import Source, utcnow, public_url
+
 from market_research.runtime import ServiceError
+from market_research.schemas import Source, public_url, utcnow
 
 SEARCH_URL = "https://ydc-index.io/v1/search"
+
 
 def retry_delay(header: str | None, attempt: int) -> float:
     if header:
@@ -17,10 +20,13 @@ def retry_delay(header: str | None, attempt: int) -> float:
             return max(0, float(header))
         except ValueError:
             try:
-                return max(0, (parsedate_to_datetime(header) - datetime.now(timezone.utc)).total_seconds())
+                return max(
+                    0, (parsedate_to_datetime(header) - datetime.now(timezone.utc)).total_seconds()
+                )
             except (ValueError, TypeError):
                 pass
-    return 2 ** attempt
+    return 2**attempt
+
 
 class YouSearch:
     def __init__(self, key, usage, transport=None, sleep=time.sleep):
@@ -31,7 +37,9 @@ class YouSearch:
         if domains:
             payload["include_domains"] = domains
         if kind == "news":
-            payload["freshness"] = f"{date.today()-timedelta(days=days):%Y-%m-%d}to{date.today():%Y-%m-%d}"
+            payload["freshness"] = (
+                f"{date.today() - timedelta(days=days):%Y-%m-%d}to{date.today():%Y-%m-%d}"
+            )
         # Page extraction improves grounding while keeping the response bounded.
         payload["extraction"] = {"extraction_mode": "full_page"}
         return normalize(self._request(SEARCH_URL, payload), kind)
@@ -40,8 +48,10 @@ class YouSearch:
         urls = [public_url(url) for url in urls[:2]]
         if not urls:
             return []
-        data = self._request("https://ydc-index.io/v1/contents",
-                             {"urls": urls, "formats": ["markdown", "metadata"], "max_age": 900})
+        data = self._request(
+            "https://ydc-index.io/v1/contents",
+            {"urls": urls, "formats": ["markdown", "metadata"], "max_age": 900},
+        )
         if not isinstance(data, list):
             raise ServiceError("You.com returned an unreadable page response.")
         rows = []
@@ -55,31 +65,39 @@ class YouSearch:
             for attempt in range(3):
                 self.usage.reserve("search")
                 try:
-                    response = client.post(endpoint, headers={"X-API-Key": self.key},
-                                           json=payload)
+                    response = client.post(endpoint, headers={"X-API-Key": self.key}, json=payload)
                 except httpx.TransportError:
                     if attempt == 2:
-                        raise ServiceError("You.com connection failed after three attempts.") from None
+                        raise ServiceError(
+                            "You.com connection failed after three attempts."
+                        ) from None
                     self.usage.record("retry", "You.com connection retry")
-                    self.sleep(2 ** attempt)
+                    self.sleep(2**attempt)
                     continue
                 if response.status_code in (429, 500, 502, 503, 504):
                     delay = retry_delay(response.headers.get("Retry-After"), attempt)
                     if attempt == 2 or delay > 20:
-                        raise ServiceError(f"You.com temporarily unavailable (HTTP {response.status_code}); retry later.")
+                        raise ServiceError(
+                            f"You.com temporarily unavailable (HTTP {response.status_code}); retry later."
+                        )
                     self.usage.record("retry", f"You.com HTTP {response.status_code}; retry")
                     self.sleep(delay)
                     continue
                 if response.status_code in (401, 403, 402):
-                    raise ServiceError("You.com credentials, permissions, or credits need attention.")
+                    raise ServiceError(
+                        "You.com credentials, permissions, or credits need attention."
+                    )
                 if response.status_code != 200:
-                    raise ServiceError(f"You.com rejected the search (HTTP {response.status_code}).")
+                    raise ServiceError(
+                        f"You.com rejected the search (HTTP {response.status_code})."
+                    )
                 try:
                     data = response.json()
                 except ValueError:
                     raise ServiceError("You.com returned an unreadable response.") from None
                 return data
         return []
+
 
 def normalize(data: dict, kind: str) -> list[Source]:
     result = []
@@ -106,12 +124,22 @@ def normalize(data: dict, kind: str) -> list[Source]:
             snippets = row.get("snippets", [])
             if not isinstance(snippets, list):
                 snippets = []
-            text = "\n".join(str(s) for s in [row.get("description", ""), *snippets, page or ""] if s)
+            text = "\n".join(
+                str(s) for s in [row.get("description", ""), *snippets, page or ""] if s
+            )
             if not text.strip():
                 continue
             digest = hashlib.sha256((url + text).encode()).hexdigest()[:14]
-            result.append(Source(id="S"+digest, url=url, title=str(row.get("title", url)),
-                                 text=text[:16000], retrieved_at=utcnow(),
-                                 published_at=row.get("page_age") or row.get("published_date"),
-                                 kind=section, content_level="page" if page else "excerpt"))
-    return list({s.id:s for s in result}.values())
+            result.append(
+                Source(
+                    id="S" + digest,
+                    url=url,
+                    title=str(row.get("title", url)),
+                    text=text[:16000],
+                    retrieved_at=utcnow(),
+                    published_at=row.get("page_age") or row.get("published_date"),
+                    kind=section,
+                    content_level="page" if page else "excerpt",
+                )
+            )
+    return list({s.id: s for s in result}.values())

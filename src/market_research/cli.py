@@ -1,7 +1,10 @@
 """Run live research: uv run python -m market_research.cli [--run-id ID]."""
+
 import argparse
+
 from market_research.market_schemas import BusinessBrief
 from market_research.market_service import MarketService
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -14,6 +17,7 @@ def main():
     print("STATUS=" + state.get("status", "unknown"))
     print("PROFILES=" + str(len(state.get("profiles", {}))))
     print("Open the Streamlit app and select this run to review it.")
+
 
 if __name__ == "__main__":
     main()

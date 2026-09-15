@@ -27,3 +27,6 @@ output/
 .ipynb_checkpoints/
 
 .streamlit/secrets.toml
+
+# Course reference supplied locally; not part of the public code submission
+Week 3 Project Handout (Aug 2026).pdf

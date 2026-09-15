@@ -19,3 +19,11 @@
 - Diagnosed repeated escaped nulls in model output from weak source input. Filtered error pages and unrelated-brand results before analysis.
 - JSON-escape non-ASCII request data, request compact quotations, and retry truncated structured responses once with a bounded larger output limit and minimal-response instruction.
 - Added sanitized model failure reasons and regression coverage for truncation, filtering and UI encoding.
+
+## Demo readiness review
+- Reread all ten handout pages and mapped Project 3A and code-track requirements to the implementation.
+- Fixed synthesis failure recovery so the final plan can be retried without repeating research.
+- Standardized code formatting/imports with Ruff; added UTF-8 editor settings and GitHub CI.
+- Added a clearly unapproved sample briefing, readiness checklist, and recording outline.
+- Local validation: 29 tests passed, lint/format passed, and installed dependencies passed compatibility checks.
+- Checked 80 Git-history blobs plus publication files for configured credentials and OpenAI key patterns; found no matches.
