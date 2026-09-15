@@ -27,3 +27,10 @@
 - Added a clearly unapproved sample briefing, readiness checklist, and recording outline.
 - Local validation: 29 tests passed, lint/format passed, and installed dependencies passed compatibility checks.
 - Checked 80 Git-history blobs plus publication files for configured credentials and OpenAI key patterns; found no matches.
+
+## Compact research workspace
+
+- Replaced stacked headings and full-width brief fields with a three-row, two-column form and collapsed news settings. Added a blank custom-idea option.
+- Added focused brand, experiment, and content selectors; searchable sources; and a session-only first-week task checklist.
+- Moved approval, additional research, recovery, and downloads into Review & export. Approval still gates exports.
+- Validation: 29 tests passed, including example switching, source filtering, and approval/export interactions. Opened an existing live draft through AppTest and exercised idea selectors and the checklist without API calls. Browser visual inspection was unavailable because the browser tool failed to initialize.

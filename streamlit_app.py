@@ -67,7 +67,6 @@ with st.sidebar:
     st.caption("Local research workspace. Review your briefing before exporting.")
 
 st.title("MarketMate AI")
-st.markdown("### Understand your market. Plan your next move.")
 st.caption(
     "Explore competing brands, find ideas worth testing, and leave with a practical action plan."
 )
@@ -81,7 +80,6 @@ except ValidationError:
 run_id = st.session_state.market_run
 if not run_id:
     with st.container(border=True):
-        st.subheader("What business are you building?")
         presets = {
             "Healthy snacks": (
                 "Launch an online healthy-snack brand for office workers",
@@ -102,23 +100,42 @@ if not run_id:
                 "https://www.hectorbeverages.com",
             ),
         }
-        example = st.selectbox("Start with an example, then edit", list(presets))
+        presets["Your own idea"] = ("", "", "", "")
+        example = st.selectbox("Start with an example or your own idea", list(presets))
         defaults = presets[example]
-        with st.form("business_brief"):
-            goal = st.text_area("Business idea", defaults[0], max_chars=1000)
-            audience = st.text_input("Who is it for?", defaults[1], max_chars=500)
+        with st.form("business_brief", border=False):
             left, right = st.columns(2)
             with left:
-                anchor = st.text_input("Reference brand", defaults[2], max_chars=100)
+                goal = st.text_input(
+                    "Business idea",
+                    defaults[0],
+                    max_chars=1000,
+                    placeholder="Open an affordable clothing shop in Pune",
+                )
+                anchor = st.text_input(
+                    "Reference brand",
+                    defaults[2],
+                    max_chars=100,
+                    help="An existing business similar to your idea.",
+                )
                 country = st.text_input("Target market", "India", max_chars=80)
             with right:
-                url = st.text_input("Reference brand website", defaults[3])
-                days = st.slider("News lookback (days)", 7, 180, 90)
-            st.caption(
-                "We research this brand and discover three competitors. Public facts support ideas to test; they do not prove demand."
-            )
+                audience = st.text_input(
+                    "Who is it for?",
+                    defaults[1],
+                    max_chars=500,
+                    placeholder="College students shopping on a budget",
+                )
+                url = st.text_input(
+                    "Reference brand website", defaults[3], placeholder="https://example.com"
+                )
+                with st.expander("Research settings"):
+                    days = st.slider("News lookback (days)", 7, 180, 90)
             submitted = st.form_submit_button(
-                "Research my market", type="primary", icon=":material/search:"
+                "Research my market", type="primary", icon=":material/search:", width="stretch"
+            )
+            st.caption(
+                "All text fields are required. We research your reference brand and three competitors."
             )
         if submitted:
             try:
@@ -138,10 +155,7 @@ if not run_id:
                 st.error(
                     "Enter your business idea, audience, market, and a valid public brand website."
                 )
-    with st.container(horizontal=True):
-        st.info("01 | Sourced competitor facts")
-        st.info("02 | Differentiation experiments")
-        st.info("03 | Content ideas and a first-week plan")
+    st.caption("What you get: competitor facts, ideas to test, content concepts, and a 7-day plan.")
     st.stop()
 
 state, pending, usage = service.snapshot(run_id)
@@ -189,13 +203,18 @@ a, b, c = st.columns(3)
 a.metric("Brands researched", len(profiles))
 b.metric("Sources collected", len(state.get("sources", {})))
 c.metric("Status", state.get("status", "ready").replace("_", " ").title())
-overview, ideas, content, actions, evidence = st.tabs(
+if pending and pending[0].get("type") == "review":
+    st.caption(
+        "Your draft is ready. Explore the tabs, then open Review & export to approve or request more research."
+    )
+overview, ideas, content, actions, evidence, review = st.tabs(
     [
-        "Competitor landscape",
+        "Market overview",
         "Ideas to test",
         "Content studio",
         "First-week plan",
-        "Sources and activity",
+        "Sources",
+        "Review & export",
     ]
 )
 
@@ -207,8 +226,12 @@ with overview:
         rows.append(
             {
                 "Brand": p.name,
-                "Positioning": p.positioning.text if p.positioning else "Still researching",
-                "Products / services": "; ".join(c.text for c in p.products),
+                "Positioning": p.positioning.text
+                if p.positioning
+                else "No verified positioning collected",
+                "Product facts": len(p.products),
+                "Price examples": len(p.pricing),
+                "Dated news": len(p.news),
                 "Supported claims": len(p.products)
                 + len(p.messaging)
                 + len(p.pricing)
@@ -218,9 +241,10 @@ with overview:
         )
     if rows:
         st.dataframe(rows, hide_index=True, width="stretch")
-    for raw in profiles.values():
-        p = BusinessProfile.model_validate(raw)
-        with st.expander(p.name, expanded=False):
+    if profiles:
+        brand = st.selectbox("Explore a brand", list(profiles), key=f"brand_{run_id}")
+        p = BusinessProfile.model_validate(profiles[brand])
+        with st.container(border=True):
             st.link_button("Brand website", p.url)
             if p.positioning:
                 show_claim(p.positioning)
@@ -256,7 +280,17 @@ with ideas:
     st.caption(
         "Proposals to validate with customers. These are not claims of proven demand or empty market niches."
     )
-    for item in plan.get("opportunities", []):
+    opportunities = plan.get("opportunities", [])
+    selected_ideas = []
+    if opportunities:
+        choice = st.selectbox(
+            "Choose an experiment",
+            range(len(opportunities)),
+            format_func=lambda i: opportunities[i]["title"],
+            key=f"idea_{run_id}",
+        )
+        selected_ideas = [opportunities[choice]]
+    for item in selected_ideas:
         with st.container(border=True):
             st.markdown("#### " + item["title"])
             st.write(item["proposal"])
@@ -271,7 +305,19 @@ with content:
     st.caption(
         "Draft concepts. Check any product, ingredient, or performance claim before using it."
     )
-    for item in plan.get("content_ideas", []):
+    content_ideas = plan.get("content_ideas", [])
+    selected_content = []
+    if content_ideas:
+        choice = st.selectbox(
+            "Choose a content idea",
+            range(len(content_ideas)),
+            format_func=lambda i: content_ideas[i]["title"],
+            key=f"content_{run_id}",
+        )
+        selected_content = [content_ideas[choice]]
+    else:
+        st.info("Content concepts appear when the research briefing is prepared.")
+    for item in selected_content:
         with st.container(border=True):
             st.markdown("#### " + item["title"])
             st.caption(item["format"])
@@ -281,10 +327,22 @@ with content:
 
 with actions:
     st.subheader("Your proposed first week")
-    for item in sorted(plan.get("actions", []), key=lambda x: x["day"]):
-        with st.container(border=True):
-            st.markdown(f"**Day {item['day']} | {item['task']}**")
-            st.write("Deliverable: " + item["deliverable"])
+    week = sorted(plan.get("actions", []), key=lambda x: x["day"])
+    if week:
+        st.caption("Tick off tasks as you go. Progress stays in this browser session only.")
+        progress_slot = st.empty()
+        completed = 0
+        for item in week:
+            with st.expander(f"Day {item['day']} | {item['task']}", expanded=item == week[0]):
+                st.write("**Deliverable:** " + item["deliverable"])
+                completed += st.checkbox(
+                    "Completed", key=f"done_{run_id}_{item['day']}_{item['task']}"
+                )
+        progress_slot.progress(
+            completed / len(week), text=f"{completed} of {len(week)} tasks completed"
+        )
+    else:
+        st.info("Your first-week plan appears after research is complete.")
     if plan.get("questions"):
         st.markdown("### Assumptions to validate")
         for question in plan["questions"]:
@@ -292,101 +350,129 @@ with actions:
 
 with evidence:
     st.caption("Public source snapshots. Brand messaging is attributed, not independently proven.")
-    for source in state.get("sources", {}).values():
-        with st.expander(source["title"] + " | " + source["id"]):
-            st.link_button("Read source", source["url"], key="source_" + source["id"])
-            st.caption(
-                f"Retrieved {source['retrieved_at']} | Published {source.get('published_at') or 'not supplied'}"
-            )
-            st.text(source["text"][:5000])
-    counts = usage.counts()
+    query = st.text_input(
+        "Search sources",
+        placeholder="Search by title, website, or passage",
+        key=f"source_query_{run_id}",
+    )
+    sources = [
+        source
+        for source in state.get("sources", {}).values()
+        if query.casefold()
+        in (source["title"] + " " + source["url"] + " " + source["text"]).casefold()
+    ]
     st.caption(
-        f"Search/page requests: {counts.get('search', 0)}/30 | Model requests: {counts.get('model', 0)}/36"
+        f"{len(sources)} matching sources. Collected pages may include material not used in the briefing."
     )
-    st.dataframe(
-        [
-            {"Step": k, "Detail": d, "Time": t}
-            for k, d, t in usage.events()
-            if k not in ("search", "model")
-        ],
-        hide_index=True,
-    )
-    st.caption("Run ID: " + run_id)
-    with st.expander("Full draft briefing"):
-        st.code(render_market_report(state), language="markdown")
+    if sources:
+        source_index = st.selectbox(
+            "Choose a source",
+            range(len(sources)),
+            format_func=lambda i: sources[i]["title"] + " | " + sources[i]["id"],
+            key=f"source_choice_{run_id}_{query}",
+        )
+        source = sources[source_index]
+        st.link_button("Read source", source["url"])
+        st.caption(
+            f"Retrieved {source['retrieved_at']} | Published {source.get('published_at') or 'not supplied'}"
+        )
+        with st.expander("Saved source passage", expanded=True):
+            st.text(source["text"][:5000])
+    else:
+        st.info("No matching sources. Try a different search.")
+    with st.expander("Research activity and full draft"):
+        counts = usage.counts()
+        st.caption(
+            f"Search/page requests: {counts.get('search', 0)}/30 | Model requests: {counts.get('model', 0)}/36"
+        )
+        st.dataframe(
+            [
+                {"Step": k, "Detail": d, "Time": t}
+                for k, d, t in usage.events()
+                if k not in ("search", "model")
+            ],
+            hide_index=True,
+        )
+        st.caption("Run ID: " + run_id)
+        with st.expander("Full draft briefing"):
+            st.code(render_market_report(state), language="markdown")
 
-if pending:
-    request = pending[0]
-    with st.container(border=True):
-        st.subheader(
-            "Review your briefing" if request["type"] == "review" else "Your input is needed"
-        )
-        st.write(request["message"])
-        if request["type"] == "review":
-            target = st.selectbox("Brand to research again", list(profiles))
-            feedback = st.text_input(
-                "What should we investigate?",
-                placeholder="Find more evidence about their product range",
+with review:
+    if pending:
+        request = pending[0]
+        with st.container(border=True):
+            st.subheader(
+                "Review your briefing" if request["type"] == "review" else "Your input is needed"
             )
-            with st.container(horizontal=True):
-                approve = st.button("Approve briefing", type="primary")
-                revise = st.button(
-                    "Research this question",
-                    disabled=not feedback.strip() or state.get("revision_count", 0) >= 2,
+            st.write(request["message"])
+            if request["type"] == "review":
+                target = st.selectbox("Brand to research again", list(profiles))
+                feedback = st.text_input(
+                    "What should we investigate?",
+                    placeholder="Find more evidence about their product range",
                 )
-                cancel = st.button("Cancel run")
-            if approve or revise or cancel:
-                execute(
-                    run_id,
-                    {
-                        "action": "approve" if approve else ("revise" if revise else "cancel"),
-                        "target_name": target,
-                        "feedback": feedback,
-                    },
-                )
-                st.rerun()
-        elif request["type"] == "clarification":
-            feedback = st.text_area("Clarify the market or reference brand")
-            with st.container(horizontal=True):
-                clarify = st.button("Update scope", disabled=not feedback.strip())
-                partial = st.button("Continue with available competitors")
-                cancel = st.button("Cancel run")
-            if clarify or partial or cancel:
-                execute(
-                    run_id,
-                    {
-                        "action": "clarify" if clarify else ("partial" if partial else "cancel"),
-                        "feedback": feedback,
-                    },
-                )
-                st.rerun()
-        else:
-            with st.container(horizontal=True):
-                retry = st.button("Retry failed step")
-                partial = st.button("Prepare partial briefing")
-                cancel = st.button("Cancel run")
-            if retry or partial or cancel:
-                execute(
-                    run_id, {"action": "retry" if retry else ("partial" if partial else "cancel")}
-                )
-                st.rerun()
-elif state.get("status") == "approved":
-    location = service.export(run_id)
-    st.success("Briefing approved. Your report is ready.")
-    with st.container(horizontal=True):
-        st.download_button(
-            "Download briefing",
-            (location / "briefing.md").read_text(encoding="utf-8"),
-            file_name="marketmate-briefing.md",
-            mime="text/markdown",
-        )
-        st.download_button(
-            "Download research JSON",
-            (location / "briefing.json").read_text(encoding="utf-8"),
-            file_name="marketmate-research.json",
-            mime="application/json",
-        )
-elif state.get("status") != "cancelled":
-    if st.button("Resume saved research", type="primary"):
-        execute(run_id)
-        st.rerun()
+                with st.container(horizontal=True):
+                    approve = st.button("Approve briefing", type="primary")
+                    revise = st.button(
+                        "Research this question",
+                        disabled=not feedback.strip() or state.get("revision_count", 0) >= 2,
+                    )
+                    cancel = st.button("Cancel run")
+                if approve or revise or cancel:
+                    execute(
+                        run_id,
+                        {
+                            "action": "approve" if approve else ("revise" if revise else "cancel"),
+                            "target_name": target,
+                            "feedback": feedback,
+                        },
+                    )
+                    st.rerun()
+            elif request["type"] == "clarification":
+                feedback = st.text_area("Clarify the market or reference brand")
+                with st.container(horizontal=True):
+                    clarify = st.button("Update scope", disabled=not feedback.strip())
+                    partial = st.button("Continue with available competitors")
+                    cancel = st.button("Cancel run")
+                if clarify or partial or cancel:
+                    execute(
+                        run_id,
+                        {
+                            "action": "clarify"
+                            if clarify
+                            else ("partial" if partial else "cancel"),
+                            "feedback": feedback,
+                        },
+                    )
+                    st.rerun()
+            else:
+                with st.container(horizontal=True):
+                    retry = st.button("Retry failed step")
+                    partial = st.button("Prepare partial briefing")
+                    cancel = st.button("Cancel run")
+                if retry or partial or cancel:
+                    execute(
+                        run_id,
+                        {"action": "retry" if retry else ("partial" if partial else "cancel")},
+                    )
+                    st.rerun()
+    elif state.get("status") == "approved":
+        location = service.export(run_id)
+        st.success("Briefing approved. Your report is ready.")
+        with st.container(horizontal=True):
+            st.download_button(
+                "Download briefing",
+                (location / "briefing.md").read_text(encoding="utf-8"),
+                file_name="marketmate-briefing.md",
+                mime="text/markdown",
+            )
+            st.download_button(
+                "Download research JSON",
+                (location / "briefing.json").read_text(encoding="utf-8"),
+                file_name="marketmate-research.json",
+                mime="application/json",
+            )
+    elif state.get("status") != "cancelled":
+        if st.button("Resume saved research", type="primary"):
+            execute(run_id)
+            st.rerun()
