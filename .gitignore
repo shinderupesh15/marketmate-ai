@@ -1,0 +1,29 @@
+# Local credentials (keep only the placeholder template)
+.env
+.env.*
+!.env.example
+
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Local research state, reports, and scratch files
+tmp/
+data/
+output/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.log
+
+.ipynb_checkpoints/
+
+.streamlit/secrets.toml
