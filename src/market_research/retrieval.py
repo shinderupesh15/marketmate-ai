@@ -9,11 +9,6 @@ def official_source(url, company_url):
 def pricing_source(source):
     return any(term in source["url"].lower() for term in ("pricing", "price", "subscription", "payment", "billing", "/plans"))
 
-def pricing_pages(sources, company_url):
-    candidates = [s for s in sources.values() if official_source(s["url"], company_url) and pricing_source(s)]
-    candidates.sort(key=lambda s: ("/pricing" in s["url"], s["retrieved_at"]), reverse=True)
-    return list(dict.fromkeys(s["url"] for s in candidates))[:2]
-
 def select_sources(ids, sources, company_url, limit=12):
     ordered = list(dict.fromkeys(sid for sid in ids if sid in sources))
     # Prefer newest copy of a URL; otherwise identical pages crowd out different evidence.

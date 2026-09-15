@@ -3,8 +3,8 @@ from market_research.market_schemas import *
 from market_research.market_agents import MarketAgents, validate_profile, checked_plan, facts
 from market_research.market_service import MarketService
 from market_research.schemas import Claim, FollowUp, Source, utcnow
-from market_research.reporting import render_report
-from market_research.runtime import ServiceError
+from market_research.market_reporting import render_market_report as render_report
+from market_research.runtime import ServiceError, BudgetExceeded
 
 def sample(name="Reference"):
     c = Claim(text="The brand offers roasted snacks.", source_id="S1",
@@ -120,14 +120,74 @@ def test_analysis_context_is_bounded():
     p=MarketAgents(ModelStub(),None,None).analyze(BusinessBrief(),{"name":"Reference","url":"https://example.com"},sources)
     assert p.products
 
-def test_market_export_bypasses_legacy_renderer(tmp_path, monkeypatch):
-    def legacy_renderer(_):
-        raise AssertionError("MarketMate must not route through the CreatorKit renderer")
-    monkeypatch.setattr("market_research.reporting.render_report", legacy_renderer)
-    service = MarketService(tmp_path, factory)
-    run = service.new_run(BusinessBrief())
-    service.execute(run)
-    with pytest.raises(PermissionError):
-        service.export(run)
-    service.execute(run, {"action":"approve"})
-    assert "# MarketMate AI" in (service.export(run)/"briefing.md").read_text(encoding="utf-8")
+
+
+class FailingMarket(FakeMarket):
+    def discover(self, *args):
+        raise ServiceError("Fixture tool failure")
+
+def test_review_survives_restart_and_export_requires_approval(tmp_path):
+    service=MarketService(tmp_path,factory)
+    rid=service.new_run(BusinessBrief())
+    state=service.execute(rid)
+    assert len(state["profiles"])==4
+    assert state["status"]=="review"
+    with pytest.raises(PermissionError): service.export(rid)
+    restarted=MarketService(tmp_path,factory)
+    saved,pending,_=restarted.snapshot(rid)
+    assert pending[0]["type"]=="review"
+    assert len(saved["profiles"])==4
+    approved=restarted.execute(rid,{"action":"approve"})
+    assert approved["approved"] is True
+    path=restarted.export(rid)
+    assert (path/"briefing.md").exists()
+    assert restarted.export(rid)==path
+
+
+def test_revision_invalidates_draft_and_cancel_blocks_export(tmp_path):
+    service=MarketService(tmp_path,factory)
+    rid=service.new_run(BusinessBrief())
+    service.execute(rid)
+    revised=service.execute(rid,{"action":"revise","target_name":"Alpha","feedback":"Check products"})
+    assert revised["status"]=="review" and not revised["approved"]
+    assert revised["revision_count"]==1
+    cancelled=service.execute(rid,{"action":"cancel"})
+    assert cancelled["status"]=="cancelled"
+    with pytest.raises(PermissionError): service.export(rid)
+
+
+def test_failure_recovers_without_new_run(tmp_path):
+    service=MarketService(tmp_path,lambda u:FailingMarket(u))
+    rid=service.new_run(BusinessBrief())
+    state=service.execute(rid)
+    assert state["status"]=="needs_help"
+    assert service.snapshot(rid)[1][0]["type"]=="recovery"
+    resumed=MarketService(tmp_path,factory).execute(rid,{"action":"retry"})
+    assert resumed["status"]=="review"
+
+
+def test_partial_report_after_failure(tmp_path):
+    service=MarketService(tmp_path,lambda u:FailingMarket(u))
+    rid=service.new_run(BusinessBrief())
+    service.execute(rid)
+    state=service.execute(rid,{"action":"partial"})
+    assert state["status"]=="review"
+    assert state["errors"]
+    assert not state["approved"]
+
+
+def test_budget_exhaustion_produces_partial_review(tmp_path):
+    class ExhaustedSearch:
+        def search(self, *args):
+            raise BudgetExceeded("Search request budget reached.")
+    def exhausted_factory(usage):
+        a = factory(usage)
+        a.search = ExhaustedSearch()
+        return a
+    service = MarketService(tmp_path, exhausted_factory)
+    rid = service.new_run(BusinessBrief())
+    state = service.execute(rid)
+    assert state["status"] == "review"
+    assert not state["approved"]
+    assert any("budget" in e for e in state["errors"])
+    assert len(state["profiles"]) == 4

@@ -4,11 +4,12 @@ from datetime import date, timedelta
 from typing import Literal
 from pydantic import create_model, Field
 from urllib.parse import urlparse
-from market_research.agents import Agents
 from market_research.schemas import Discovery, EvidenceReview, FollowUp, Candidate
 from market_research.market_schemas import BusinessBrief, BusinessProfile, MarketPlan, Experiment, ContentIdea, empty_profile
-from market_research.evidence import clean
 from market_research.retrieval import official_source
+
+def clean(text):
+    return re.sub(r"\s+", " ", text).strip().casefold()
 
 def facts(profile):
     result = {}
@@ -68,11 +69,10 @@ def checked_plan(plan, profiles):
         p.questions.append("Evidence was insufficient for some ideas; refine the scope or request more research.")
     return p
 
-class MarketAgents(Agents):
-    brief_type = BusinessBrief
-    profile_type = BusinessProfile
-    empty_profile = staticmethod(empty_profile)
-    market_mode = True
+class MarketAgents:
+    def __init__(self, model, search, usage):
+        self.model, self.search, self.usage = model, search, usage
+
 
     def discover(self, brief, feedback=""):
         sources = {}

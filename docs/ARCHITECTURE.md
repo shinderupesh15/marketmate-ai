@@ -1,6 +1,6 @@
 # MarketMate AI architecture
 
-The shared graph now accepts MarketAgents with BusinessBrief, BusinessProfile and MarketPlan contracts. New runs live under data/marketmate; earlier CreatorKit data is preserved. The main app uses MarketService.
+The graph uses MarketAgents with BusinessBrief, BusinessProfile and MarketPlan. Runs live in data/marketmate/marketmate.sqlite. The app uses the self-contained MarketService.
 
 ## Workflow
 

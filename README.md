@@ -6,7 +6,7 @@ Built for Week 3 Project 3A with Python, LangChain, LangGraph, You.com and OpenA
 
 Facts and proposals are separate: suggestions are hypotheses to test, not proven demand. Missing optional prices or news do not block other findings. Human review is required before export.
 
-See [product scope](docs/MARKETMATE_SCOPE.md) and [submission draft](docs/SUBMISSION_DRAFT.md). CreatorKit is the earlier prototype; its saved data remains intact. New runs are stored in data/marketmate.
+See [product scope](docs/MARKETMATE_SCOPE.md) and [submission draft](docs/SUBMISSION_DRAFT.md). New runs are stored in data/marketmate.
 
 ## Setup (PowerShell)
 
@@ -74,7 +74,7 @@ The offline setup check verifies configuration, imports, and a LangGraph/SQLite 
 
 ## Local data
 
-data/marketmate/creatorkit.sqlite stores checkpoints, source passages, run history, and sanitized event logs.
+data/marketmate/marketmate.sqlite stores checkpoints, source passages, run history, and sanitized event logs.
 data/marketmate/exports/<run-id>/ holds approved exports. These files are ignored by Git.
 Run data remains locally until explicitly removed. Do not delete the database while the app is running.
 Fresh runs fetch new evidence; old reports retain their original retrieval dates.
@@ -92,7 +92,7 @@ ipykernel is installed; a global kernel registration is unnecessary.
 - models.py and market_agents.py: structured model calls, specialist roles and evidence checks.
 - market_reporting.py: sourced competitor report and labeled experiments.
 - graph.py: research routing, bounded follow-up, interrupts, and recovery.
-- service.py and runtime.py: SQLite lifecycle, history, and usage limits.
+- market_service.py and runtime.py: SQLite lifecycle, history, and usage limits.
 - reporting.py: Markdown rendering and approval-gated exports.
 - tests/: offline evidence, failure, persistence, budget, and UI tests.
 - docs/MARKETMATE_SCOPE.md: current product scope.

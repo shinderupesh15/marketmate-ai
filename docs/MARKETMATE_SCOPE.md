@@ -18,9 +18,9 @@ Observed facts and proposed ideas are separate in the interface and report. A su
 Retains the Project 3A market-research workflow: discovery, research, analysis, orchestration, external search tools, durable state, bounded follow-up, and human review. Pricing and news are still researched but absent optional fields do not block synthesis.
 
 ## Implementation
-The shared LangGraph accepts a brief type, profile type and empty-profile constructor from its agents. MarketMate runs use BusinessBrief, BusinessProfile and MarketPlan; CreatorKit schemas remain for earlier snapshots and regression tests.
+LangGraph uses BusinessBrief, BusinessProfile and MarketPlan directly. MarketAgents and MarketService are self-contained.
 
-MarketService stores new runs under data/marketmate. Original data/creatorkit.sqlite is preserved. The main Streamlit app and CLI now launch MarketMate.
+MarketService stores runs in data/marketmate/marketmate.sqlite. The Streamlit app and CLI launch MarketMate.
 
 Search retrieves official product pages, public positioning and news, and reads the brand homepage through You.com Contents. Discovery resolves missing official websites through a bounded additional search. Exact quotes, source existence, date checks and an independent model review filter factual claims. Synthesis references checked company/field pairs; unresolved references are dropped.
 
