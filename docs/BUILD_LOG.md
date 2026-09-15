@@ -12,3 +12,10 @@
 - Made MarketMate agents and service independent; retained shared transport, recovery, persistence and approval tests.
 - Renamed the active database to marketmate.sqlite and verified its contents were unchanged. All three saved demo reports still render.
 - Current suite: 23 passing tests. Local server restarted successfully.
+
+## Paused-run and display fixes
+- Fixed repeated Windows-1252/UTF-8 corruption in UI punctuation; UI separators now use plain text.
+- Added explicit paused-step feedback and a retry button near the top of the saved run.
+- Diagnosed repeated escaped nulls in model output from weak source input. Filtered error pages and unrelated-brand results before analysis.
+- JSON-escape non-ASCII request data, request compact quotations, and retry truncated structured responses once with a bounded larger output limit and minimal-response instruction.
+- Added sanitized model failure reasons and regression coverage for truncation, filtering and UI encoding.

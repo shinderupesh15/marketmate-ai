@@ -133,6 +133,10 @@ class MarketAgents:
         ]
 
     def analyze(self, brief, company, sources):
+        brand = re.sub(r"[^a-z0-9]", "", company["name"].casefold())
+        sources = {sid: src for sid, src in sources.items()
+                   if not src["text"].strip().lower().startswith(("404 not found", "403 forbidden"))
+                   and (official_source(src["url"], company["url"]) or brand in re.sub(r"[^a-z0-9]", "", (src.get("title", "") + " " + src["text"]).casefold()))}
         if not sources:
             return empty_profile(company["name"], company["url"], brief, "No usable source content.")
         # Keep provider token use bounded even when full pages are very large.
@@ -148,7 +152,7 @@ class MarketAgents:
         profile = self.model.ask(BusinessProfile,
             "Research this brand using ONLY supplied sources. Extract positioning, up to 4 concrete products/services, "
             "up to 3 messaging claims, up to 2 published price examples (with product, currency, pack size if given), "
-            "and up to 2 dated news items. Use short factual descriptions. Attribute marketing or health claims to the brand; "
+            "and up to 2 dated news items. Keep each quotation under 350 characters and each description under 180 characters; extract fewer claims if needed. Attribute marketing or health claims to the brand; "
             "do not endorse them as independently proven. Do not infer customer demand, market share, weaknesses, "
             "unserved needs, or nationwide availability. Pricing is optional and does not block other findings. "
             "Each claim must cite an EXACT contiguous source passage; copy Markdown as needed and never merge distant lines. "

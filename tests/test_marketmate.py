@@ -191,3 +191,13 @@ def test_budget_exhaustion_produces_partial_review(tmp_path):
     assert not state["approved"]
     assert any("budget" in e for e in state["errors"])
     assert len(state["profiles"]) == 4
+
+def test_error_pages_and_unrelated_news_do_not_reach_analysis():
+    class NoModel:
+        def ask(self, *args):
+            raise AssertionError("No useful evidence should reach the model")
+    sources={"bad":{"url":"https://example.com/broken","text":"404 Not Found nginx","title":"Error"},
+             "other":{"url":"https://news.example.org/apple","text":"Apple launched a computer","title":"Tech news"}}
+    result=MarketAgents(NoModel(),None,None).analyze(BusinessBrief(),{"name":"Snack Brand","url":"https://example.com"},sources)
+    assert not result.products
+    assert result.gaps

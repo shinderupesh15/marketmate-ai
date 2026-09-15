@@ -20,3 +20,9 @@ def test_new_brief_and_review_ui(tmp_path, monkeypatch):
     assert not app.exception
     assert app.get("download_button")
     st.cache_resource.clear()
+
+def test_ui_text_has_no_encoding_damage():
+    from pathlib import Path
+    source=(Path(__file__).parent.parent/"streamlit_app.py").read_text(encoding="utf-8")
+    for marker in ("\u00c3", "\u00c2", "\ufffd"):
+        assert marker not in source
