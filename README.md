@@ -8,6 +8,14 @@ Facts and proposals are separate: suggestions are hypotheses to test, not proven
 
 See [product scope](docs/MARKETMATE_SCOPE.md) and [submission draft](docs/SUBMISSION_DRAFT.md). New runs are stored in data/marketmate.
 
+## Architecture
+
+![MarketMate AI architecture showing the Streamlit interface, LangGraph research workflow, LangChain model integration, You.com evidence retrieval, SQLite checkpoints, and human approval](docs/images/marketmate-architecture.png)
+
+The workflow discovers competitors, gathers and checks evidence, and prepares a briefing for human review. LangChain connects to the OpenAI model, while LangGraph manages routing, follow-up research, pauses, and saved progress. Approval enables Markdown and JSON export.
+
+[View the full-size diagram](docs/images/marketmate-architecture.png) or read the [technical architecture](docs/ARCHITECTURE.md).
+
 ## Setup (PowerShell)
 
 Python 3.13 and uv are used locally. The exact dependency resolution is in uv.lock.
